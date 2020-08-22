@@ -11,10 +11,12 @@
 package com.samples.flironecamera;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageView photoImage;
 
     private TextView resultTextView;
+    private LinearLayout backgroundView;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
@@ -304,11 +307,17 @@ public class MainActivity extends AppCompatActivity {
         public void images(ThermalImage thermalImage) {
             Log.d(TAG, thermalImage.getDescription());
 
-            String maxTemp = "" + (thermalImage.getScale().getRangeMax() - 273.15);
+            double maxTemp = (thermalImage.getScale().getRangeMax() - 273.15);
 
             // UI 스레드 작업
             runOnUiThread(() -> {
-                resultTextView.setText(maxTemp);
+                resultTextView.setText("" + maxTemp);
+
+                if (maxTemp > 33) {
+                    backgroundView.setBackgroundColor(Color.RED);
+                } else {
+                    backgroundView.setBackgroundColor(Color.WHITE);
+                }
             });
 
         }
@@ -362,6 +371,7 @@ public class MainActivity extends AppCompatActivity {
         connectionStatus = findViewById(R.id.connection_status_text);
         discoveryStatus = findViewById(R.id.discovery_status);
         resultTextView = findViewById(R.id.result_textview);
+        backgroundView = findViewById(R.id.background);
 
         msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
