@@ -61,6 +61,7 @@ class CameraHandler {
     public interface StreamDataListener {
         void images(FrameDataHolder dataHolder);
         void images(Bitmap msxBitmap, Bitmap dcBitmap);
+        void images(ThermalImage thermalImage);
     }
 
     //Discovered FLIR cameras
@@ -223,6 +224,8 @@ class CameraHandler {
 
             Log.d(TAG,"adding images to cache");
             streamDataListener.images(msxBitmap,dcBitmap);
+
+            streamDataListener.images(thermalImage);
         }
     };
 

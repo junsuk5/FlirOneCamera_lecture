@@ -299,6 +299,19 @@ public class MainActivity extends AppCompatActivity {
             });
 
         }
+
+        @Override
+        public void images(ThermalImage thermalImage) {
+            Log.d(TAG, thermalImage.getDescription());
+
+            String maxTemp = "" + (thermalImage.getScale().getRangeMax() - 273.15);
+
+            // UI 스레드 작업
+            runOnUiThread(() -> {
+                resultTextView.setText(maxTemp);
+            });
+
+        }
     };
 
     /**
