@@ -32,8 +32,16 @@ import com.flir.thermalsdk.live.Identity;
 import com.flir.thermalsdk.live.connectivity.ConnectionStatusListener;
 import com.flir.thermalsdk.live.discovery.DiscoveryEventListener;
 import com.flir.thermalsdk.log.ThermalLog;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -67,6 +75,14 @@ public class MainActivity extends AppCompatActivity {
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
+
+    FaceDetectorOptions highAccuracyOpts =
+            new FaceDetectorOptions.Builder()
+                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                    .setClassificationMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                    .build();
+
+    FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
 
     /**
      * Show message on the screen
@@ -298,6 +314,26 @@ public class MainActivity extends AppCompatActivity {
                     FrameDataHolder poll = framesBuffer.poll();
                     msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
+
+                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
+
+                    Task<List<Face>> result =
+                            detector.process(image)
+                                    .addOnSuccessListener(
+                                            new OnSuccessListener<List<Face>>() {
+                                                @Override
+                                                public void onSuccess(List<Face> faces) {
+                                                    Log.d(TAG, "onSuccess: " + faces);
+                                                    // Task completed successfully
+                                                    // ...
+//                                                    for (Face face: faces) {
+//                                                        Rect bounds = face.getBoundingBox();
+//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
+//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
+//                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
+//                                                    }
+                                                }
+                                            });
                 }
             });
 
