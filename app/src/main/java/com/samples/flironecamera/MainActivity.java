@@ -14,6 +14,9 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -64,10 +67,7 @@ public class MainActivity extends AppCompatActivity {
     private CameraHandler cameraHandler;
 
     private Identity connectedIdentity = null;
-    private TextView connectionStatus;
-    private TextView discoveryStatus;
 
-    private ImageView msxImage;
     private ImageView photoImage;
 
     private TextView resultTextView;
@@ -108,8 +108,6 @@ public class MainActivity extends AppCompatActivity {
         cameraHandler = new CameraHandler();
 
         setupViews();
-
-        showSDKversion(ThermalSdkAndroid.getVersion());
     }
 
     public void startDiscovery(View view) {
@@ -232,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updateConnectionText(Identity identity, String status) {
         String deviceId = identity != null ? identity.deviceId : "";
-        connectionStatus.setText(getString(R.string.connection_status_text, deviceId + " " + status));
+        Toast.makeText(this, getString(R.string.connection_status_text, deviceId + " " + status), Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -255,12 +253,12 @@ public class MainActivity extends AppCompatActivity {
     private CameraHandler.DiscoveryStatus discoveryStatusListener = new CameraHandler.DiscoveryStatus() {
         @Override
         public void started() {
-            discoveryStatus.setText(getString(R.string.connection_status_text, "discovering"));
+            Toast.makeText(MainActivity.this, getString(R.string.connection_status_text, "discovering"), Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void stopped() {
-            discoveryStatus.setText(getString(R.string.connection_status_text, "not discovering"));
+            Toast.makeText(MainActivity.this, getString(R.string.connection_status_text, "not discovering"), Toast.LENGTH_SHORT).show();
         }
     };
 
@@ -291,8 +289,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    msxImage.setImageBitmap(dataHolder.msxBitmap);
-                    photoImage.setImageBitmap(dataHolder.dcBitmap);
+                    photoImage.setImageBitmap(dataHolder.msxBitmap);
                 }
             });
         }
@@ -312,7 +309,6 @@ public class MainActivity extends AppCompatActivity {
                 public void run() {
                     Log.d(TAG,"framebuffer size:"+framesBuffer.size());
                     FrameDataHolder poll = framesBuffer.poll();
-                    msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
 
                     InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
@@ -347,7 +343,7 @@ public class MainActivity extends AppCompatActivity {
 
             // UI 스레드 작업
             runOnUiThread(() -> {
-                resultTextView.setText("" + maxTemp);
+                resultTextView.setText(String.format("%.2f", maxTemp));
 
                 if (maxTemp > 33) {
                     backgroundView.setBackgroundColor(Color.RED);
@@ -404,13 +400,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupViews() {
-        connectionStatus = findViewById(R.id.connection_status_text);
-        discoveryStatus = findViewById(R.id.discovery_status);
-        resultTextView = findViewById(R.id.result_textview);
+        resultTextView = findViewById(R.id.result_text);
         backgroundView = findViewById(R.id.background);
 
-        msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.action_start_discovery:
+                startDiscovery();
+                return true;
+            case R.id.action_stop_discovery:
+                stopDiscovery();
+                return true;
+            case R.id.action_connect:
+                connectFlirOne(null);
+                return true;
+            case R.id.action_disconnect:
+                disconnect();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
 }

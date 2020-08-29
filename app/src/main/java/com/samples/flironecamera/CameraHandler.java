@@ -215,7 +215,7 @@ class CameraHandler {
             //Get a bitmap with only IR data
             Bitmap msxBitmap;
             {
-                thermalImage.getFusion().setFusionMode(FusionMode.THERMAL_ONLY);
+                thermalImage.getFusion().setFusionMode(FusionMode.THERMAL_FUSION);
                 msxBitmap = BitmapAndroid.createBitmap(thermalImage.getImage()).getBitMap();
             }
 
