@@ -12,6 +12,7 @@ package com.samples.flironecamera;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
@@ -65,6 +66,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
+    private static final int FRAME_RATE = 10;
 
     //Handles Android permission for eg Network
     private PermissionHandler permissionHandler;
@@ -86,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech mTTS2;
     private TextView textView1;
     private TextView textView2;
+    private MyView myView;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
@@ -99,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
     FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
 
     private Handler mHandler = new Handler();
+    private int imageCount = 0;
 
     /**
      * Show message on the screen
@@ -388,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(Bitmap msxBitmap, Bitmap dcBitmap) {
-
+            imageCount++;
             try {
                 framesBuffer.put(new FrameDataHolder(msxBitmap, dcBitmap));
             } catch (InterruptedException e) {
@@ -406,23 +410,29 @@ public class MainActivity extends AppCompatActivity {
 
                     InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
 
-                    Task<List<Face>> result =
-                            detector.process(image)
-                                    .addOnSuccessListener(
-                                            new OnSuccessListener<List<Face>>() {
-                                                @Override
-                                                public void onSuccess(List<Face> faces) {
-                                                    Log.d(TAG, "onSuccess: " + faces);
-                                                    // Task completed successfully
-                                                    // ...
-//                                                    for (Face face: faces) {
-//                                                        Rect bounds = face.getBoundingBox();
+
+                    if (imageCount % FRAME_RATE == 0) {
+                        Task<List<Face>> result =
+                                detector.process(image)
+                                        .addOnSuccessListener(
+                                                new OnSuccessListener<List<Face>>() {
+                                                    @Override
+                                                    public void onSuccess(List<Face> faces) {
+                                                        Log.d(TAG, "onSuccess: " + faces);
+                                                        // Task completed successfully
+                                                        // ...
+                                                        for (Face face : faces) {
+                                                            Rect bounds = face.getBoundingBox();
+//                                                            Rect bounds = new Rect(200, 200, 600, 600);
+                                                            myView.setRect(bounds);
+
 //                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
 //                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
 //                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
-//                                                    }
-                                                }
-                                            });
+                                                        }
+                                                    }
+                                                });
+                    }
                 }
             });
 
@@ -430,7 +440,19 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(ThermalImage thermalImage) {
-            Log.d(TAG, thermalImage.getDescription());
+            // TODO MyView(myView.getWidth(), myView.getHeight()) 와 ThermalImage(480, 640) 사이즈 보정
+            // 얼굴 예 : Rect(382, 671 - 804, 1093) =>
+            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
+            Log.d(TAG, "MyView" + myView.getWidth() + ", " + myView.getHeight());
+
+            Rect bounds = new Rect(200, 200, 600, 600);
+//            Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
+//                    bounds.right - bounds.left, bounds.bottom - bounds.top);
+//            double[] result = thermalImage.getValues(rectangle);
+//
+//            Arrays.sort(result);
+//
+//            double maxTemp = result[result.length - 1] - 273.15;
 
             double maxTemp = (thermalImage.getScale().getRangeMax() - 273.15);
 
@@ -509,6 +531,8 @@ public class MainActivity extends AppCompatActivity {
         photoImage = findViewById(R.id.photo_image);
 
         resultTextView = findViewById(R.id.result_text);
+
+        myView = findViewById(R.id.myView);
     }
 
     @Override
