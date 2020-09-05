@@ -13,6 +13,9 @@ package com.samples.flironecamera;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.PersistableBundle;
+import android.speech.tts.TextToSpeech;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -23,6 +26,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.flir.thermalsdk.ErrorCode;
@@ -45,6 +49,7 @@ import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -67,11 +72,19 @@ public class MainActivity extends AppCompatActivity {
     private CameraHandler cameraHandler;
 
     private Identity connectedIdentity = null;
-
+    //private TextView connectionStatus;
+//    private TextView discoveryStatus;
+//
+//    private ImageView msxImage;
     private ImageView photoImage;
 
     private TextView resultTextView;
     private LinearLayout backgroundView;
+
+    private TextToSpeech mTTS1;
+    private TextToSpeech mTTS2;
+    private TextView textView1;
+    private TextView textView2;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
@@ -108,6 +121,67 @@ public class MainActivity extends AppCompatActivity {
         cameraHandler = new CameraHandler();
 
         setupViews();
+//        startDiscovery();
+//        showSDKversion(ThermalSdkAndroid.getVersion());
+
+        talk_top();
+
+        textView1 = findViewById(R.id.top_text);
+        textView2 = findViewById(R.id.bottom_text);
+        textView1.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        textView2.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        textView1.setSelected(true);
+        textView2.setSelected(true);
+        textView1.setVisibility(View.GONE);
+        textView2.setVisibility(View.GONE);
+    }
+
+    private void talk_top() {
+        mTTS1 = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = mTTS1.setLanguage(Locale.US); //change to English
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("TTS", "Language not supported");
+                    } else {
+                        speak1();
+                    }
+                } else {
+                    Log.e("TTS", "Initialization failed");
+                }
+            }
+        });
+    }
+
+    private void talk_bottom() {
+        mTTS2 = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = mTTS2.setLanguage(Locale.US); //change to English
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("TTS", "Language not supported");
+                    } else {
+                        speak2();
+                    }
+                } else {
+                    Log.e("TTS", "Initialization failed");
+                }
+            }
+        });
+    }
+
+    private void speak1() {
+        String text1 = textView1.getText().toString();
+        //mTTS1.speak(text1, TextToSpeech.QUEUE_ADD, null);
+        mTTS1.speak(text1, TextToSpeech.QUEUE_FLUSH, null, null);
+    }
+
+    private void speak2() {
+        String text2 = textView2.getText().toString();
+        //mTTS1.speak(text2, TextToSpeech.QUEUE_ADD, null);
+        mTTS2.speak(text2, TextToSpeech.QUEUE_ADD, null, null);
     }
 
     public void startDiscovery(View view) {
@@ -188,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void error(UsbPermissionHandler.UsbPermissionListener.ErrorType errorType, final Identity identity) {
+        public void error(ErrorType errorType, final Identity identity) {
             MainActivity.this.showMessage.show("Error when asking for permission for FLIR ONE, error:"+errorType+ " identity:" +identity);
         }
     };
@@ -220,7 +294,7 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             cameraHandler.disconnect();
             runOnUiThread(() -> {
-                    updateConnectionText(null, "DISCONNECTED");
+                updateConnectionText(null, "DISCONNECTED");
             });
         }).start();
     }
@@ -230,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updateConnectionText(Identity identity, String status) {
         String deviceId = identity != null ? identity.deviceId : "";
+        //connectionStatus.setText(getString(R.string.connection_status_text, deviceId + " " + status));
         Toast.makeText(this, getString(R.string.connection_status_text, deviceId + " " + status), Toast.LENGTH_SHORT).show();
     }
 
@@ -253,11 +328,13 @@ public class MainActivity extends AppCompatActivity {
     private CameraHandler.DiscoveryStatus discoveryStatusListener = new CameraHandler.DiscoveryStatus() {
         @Override
         public void started() {
+            //discoveryStatus.setText(getString(R.string.connection_status_text, "discovering"));
             Toast.makeText(MainActivity.this, getString(R.string.connection_status_text, "discovering"), Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void stopped() {
+            //discoveryStatus.setText(getString(R.string.connection_status_text, "not discovering"));
             Toast.makeText(MainActivity.this, getString(R.string.connection_status_text, "not discovering"), Toast.LENGTH_SHORT).show();
         }
     };
@@ -289,7 +366,8 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    photoImage.setImageBitmap(dataHolder.msxBitmap);
+                    //msxImage.setImageBitmap(dataHolder.msxBitmap);
+                    photoImage.setImageBitmap(dataHolder.dcBitmap);
                 }
             });
         }
@@ -309,6 +387,7 @@ public class MainActivity extends AppCompatActivity {
                 public void run() {
                     Log.d(TAG,"framebuffer size:"+framesBuffer.size());
                     FrameDataHolder poll = framesBuffer.poll();
+                    //msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
 
                     InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
@@ -344,11 +423,18 @@ public class MainActivity extends AppCompatActivity {
             // UI 스레드 작업
             runOnUiThread(() -> {
                 resultTextView.setText(String.format("%.2f", maxTemp));
+                backgroundView.setBackgroundColor(Color.WHITE);
+                textView1.setVisibility(View.VISIBLE);
 
-                if (maxTemp > 33) {
+                if (maxTemp > 38) {
                     backgroundView.setBackgroundColor(Color.RED);
+                    resultTextView.setTextColor(Color.RED);
+                    talk_bottom();
+                    textView2.setVisibility(View.VISIBLE);
                 } else {
                     backgroundView.setBackgroundColor(Color.WHITE);
+                    resultTextView.setTextColor(Color.GREEN);
+                    textView2.setVisibility(View.GONE);
                 }
             });
 
@@ -368,6 +454,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     cameraHandler.add(identity);
+//                    connect(cameraHandler.getFlirOne());
                 }
             });
         }
@@ -400,30 +487,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupViews() {
-        resultTextView = findViewById(R.id.result_text);
+        //connectionStatus = findViewById(R.id.connection_status_text);
+        //discoveryStatus = findViewById(R.id.discovery_status);
         backgroundView = findViewById(R.id.background);
 
+        //msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
+
+        resultTextView = findViewById(R.id.result_text);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.main_menu, menu);
+        inflater.inflate(R.menu.main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle item selection
-        switch (item.getItemId()) {
+        //Handle item selection
+        switch(item.getItemId()) {
             case R.id.action_start_discovery:
                 startDiscovery();
                 return true;
             case R.id.action_stop_discovery:
                 stopDiscovery();
                 return true;
-            case R.id.action_connect:
+            case R.id.action_connect_flirone:
                 connectFlirOne(null);
                 return true;
             case R.id.action_disconnect:
@@ -432,5 +523,14 @@ public class MainActivity extends AppCompatActivity {
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mTTS1 != null || mTTS2 != null) {
+            mTTS1.stop(); mTTS2.stop();
+            mTTS1.shutdown(); mTTS2.shutdown();
+        }
+        super.onDestroy();
     }
 }

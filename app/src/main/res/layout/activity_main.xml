@@ -6,52 +6,54 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="#ff0000"
     tools:context=".MainActivity">
 
     <TextView
         android:id="@+id/top_text"
+        android:background="#ffffff"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="20dp"
-        android:background="#ffffff"
+        android:textSize="40sp"
         android:singleLine="true"
-        android:text="@string/top_text"
-        android:textSize="40sp" />
+        android:text="@string/top_text_en" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_margin="20dp"
-        android:layout_weight="1">
-
+        android:layout_weight="1"
+        android:layout_margin="20dp" >
         <ImageView
             android:id="@+id/photo_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="center" />
+            android:scaleType="center"
+            android:contentDescription="Thermal Image" />
 
         <TextView
             android:id="@+id/result_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FF0000"
-            android:textSize="30sp"
+            android:text="36.5"
+            android:textColor="@android:color/holo_green_light"
+            android:textSize="24dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="36.5" />
+            app:layout_constraintTop_toTopOf="parent" />
+        <!-- the above code is used in disabled mode -->
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <TextView
         android:id='@+id/bottom_text'
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="20dp"
         android:background="#ffffff"
         android:gravity="bottom"
+        android:layout_margin="20dp"
+        android:textSize="40sp"
         android:singleLine="true"
-        android:text="@string/bottom_text"
-        android:textSize="40sp" />
+        android:text="@string/bottom_text_en" />
 
 </LinearLayout>

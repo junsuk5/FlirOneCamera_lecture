@@ -9,7 +9,7 @@
         android:id="@+id/action_stop_discovery"
         android:title="@string/stop_discovery_text" />
     <item
-        android:id="@+id/action_connect"
+        android:id="@+id/action_connect_flirone"
         android:title="@string/connect_f1_text" />
     <item
         android:id="@+id/action_disconnect"
