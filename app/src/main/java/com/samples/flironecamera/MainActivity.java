@@ -13,7 +13,7 @@ package com.samples.flironecamera;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.PersistableBundle;
+import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
@@ -26,7 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.flir.thermalsdk.ErrorCode;
@@ -50,6 +49,8 @@ import com.google.mlkit.vision.face.FaceDetectorOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -97,6 +98,8 @@ public class MainActivity extends AppCompatActivity {
 
     FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
 
+    private Handler mHandler = new Handler();
+
     /**
      * Show message on the screen
      */
@@ -134,6 +137,8 @@ public class MainActivity extends AppCompatActivity {
         textView2.setSelected(true);
         textView1.setVisibility(View.GONE);
         textView2.setVisibility(View.GONE);
+
+        talk_bottom();
     }
 
     private void talk_top() {
@@ -145,7 +150,12 @@ public class MainActivity extends AppCompatActivity {
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         Log.e("TTS", "Language not supported");
                     } else {
-                        speak1();
+                        new Timer().scheduleAtFixedRate(new TimerTask() {
+                            @Override
+                            public void run() {
+                                speak1();
+                            }
+                        }, 0, 10000);
                     }
                 } else {
                     Log.e("TTS", "Initialization failed");
@@ -162,8 +172,6 @@ public class MainActivity extends AppCompatActivity {
                     int result = mTTS2.setLanguage(Locale.US); //change to English
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         Log.e("TTS", "Language not supported");
-                    } else {
-                        speak2();
                     }
                 } else {
                     Log.e("TTS", "Initialization failed");
@@ -175,13 +183,19 @@ public class MainActivity extends AppCompatActivity {
     private void speak1() {
         String text1 = textView1.getText().toString();
         //mTTS1.speak(text1, TextToSpeech.QUEUE_ADD, null);
-        mTTS1.speak(text1, TextToSpeech.QUEUE_FLUSH, null, null);
+
+        if (mTTS2.isSpeaking() == false) {
+            mTTS1.speak(text1, TextToSpeech.QUEUE_FLUSH, null, null);
+        }
     }
 
     private void speak2() {
         String text2 = textView2.getText().toString();
         //mTTS1.speak(text2, TextToSpeech.QUEUE_ADD, null);
-        mTTS2.speak(text2, TextToSpeech.QUEUE_ADD, null, null);
+
+        if (mTTS2.isSpeaking() == false) {
+            mTTS2.speak(text2, TextToSpeech.QUEUE_ADD, null, null);
+        }
     }
 
     public void startDiscovery(View view) {
@@ -263,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void error(ErrorType errorType, final Identity identity) {
-            MainActivity.this.showMessage.show("Error when asking for permission for FLIR ONE, error:"+errorType+ " identity:" +identity);
+            MainActivity.this.showMessage.show("Error when asking for permission for FLIR ONE, error:" + errorType + " identity:" + identity);
         }
     };
 
@@ -376,16 +390,16 @@ public class MainActivity extends AppCompatActivity {
         public void images(Bitmap msxBitmap, Bitmap dcBitmap) {
 
             try {
-                framesBuffer.put(new FrameDataHolder(msxBitmap,dcBitmap));
+                framesBuffer.put(new FrameDataHolder(msxBitmap, dcBitmap));
             } catch (InterruptedException e) {
                 //if interrupted while waiting for adding a new item in the queue
-                Log.e(TAG,"images(), unable to add incoming images to frames buffer, exception:"+e);
+                Log.e(TAG, "images(), unable to add incoming images to frames buffer, exception:" + e);
             }
 
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Log.d(TAG,"framebuffer size:"+framesBuffer.size());
+                    Log.d(TAG, "framebuffer size:" + framesBuffer.size());
                     FrameDataHolder poll = framesBuffer.poll();
                     //msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
@@ -429,8 +443,8 @@ public class MainActivity extends AppCompatActivity {
                 if (maxTemp > 38) {
                     backgroundView.setBackgroundColor(Color.RED);
                     resultTextView.setTextColor(Color.RED);
-                    talk_bottom();
                     textView2.setVisibility(View.VISIBLE);
+                    speak2();
                 } else {
                     backgroundView.setBackgroundColor(Color.WHITE);
                     resultTextView.setTextColor(Color.GREEN);
@@ -507,7 +521,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         //Handle item selection
-        switch(item.getItemId()) {
+        switch (item.getItemId()) {
             case R.id.action_start_discovery:
                 startDiscovery();
                 return true;
@@ -528,8 +542,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (mTTS1 != null || mTTS2 != null) {
-            mTTS1.stop(); mTTS2.stop();
-            mTTS1.shutdown(); mTTS2.shutdown();
+            mTTS1.stop();
+            mTTS2.stop();
+            mTTS1.shutdown();
+            mTTS2.shutdown();
         }
         super.onDestroy();
     }
