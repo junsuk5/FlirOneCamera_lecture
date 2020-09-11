@@ -5,25 +5,25 @@
     android:id="@+id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#ff0000"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
     <TextView
         android:id="@+id/top_text"
-        android:background="#ffffff"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="20dp"
-        android:textSize="40sp"
+        android:background="#ffffff"
         android:singleLine="true"
-        android:text="@string/top_text_en" />
+        android:text="@string/top_text_en"
+        android:textSize="40sp" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_margin="20dp" >
+        android:layout_margin="20dp"
+        android:layout_weight="1">
 
         <ImageView
             android:id="@+id/photo_image"
@@ -45,11 +45,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <com.samples.flironecamera.camera.CameraSourcePreview
+            android:id="@+id/preview"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.samples.flironecamera.camera.GraphicOverlay
+                android:id="@+id/faceOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </com.samples.flironecamera.camera.CameraSourcePreview>
+
         <TextView
             android:id="@+id/result_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="36.5"
+            android:text=""
             android:textColor="@android:color/holo_green_light"
             android:textSize="24dp"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -63,11 +78,11 @@
         android:id='@+id/bottom_text'
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_margin="20dp"
         android:background="#ffffff"
         android:gravity="bottom"
-        android:layout_margin="20dp"
-        android:textSize="40sp"
         android:singleLine="true"
-        android:text="@string/bottom_text_en" />
+        android:text="@string/bottom_text_en"
+        android:textSize="40sp" />
 
 </LinearLayout>

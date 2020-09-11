@@ -10,6 +10,9 @@
  * ******************************************************************/
 package com.samples.flironecamera;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
@@ -28,6 +31,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.BuildConfig;
@@ -39,16 +43,17 @@ import com.flir.thermalsdk.live.Identity;
 import com.flir.thermalsdk.live.connectivity.ConnectionStatusListener;
 import com.flir.thermalsdk.live.discovery.DiscoveryEventListener;
 import com.flir.thermalsdk.log.ThermalLog;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetector;
+import com.google.android.gms.vision.CameraSource;
+import com.google.android.gms.vision.MultiProcessor;
+import com.google.android.gms.vision.Tracker;
+import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
+import com.samples.flironecamera.camera.CameraSourcePreview;
+import com.samples.flironecamera.camera.FaceGraphic;
+import com.samples.flironecamera.camera.GraphicOverlay;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -64,6 +69,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Please note, this is <b>NOT</b> production quality code, error handling has been kept to a minimum to keep the code as clear and concise as possible
  */
 public class MainActivity extends AppCompatActivity {
+
+    private static final int RC_HANDLE_GMS = 9001;
+    // permission request codes need to be < 256
+    private static final int RC_HANDLE_CAMERA_PERM = 2;
+
 
     private static final String TAG = "MainActivity";
     private static final int FRAME_RATE = 10;
@@ -95,14 +105,17 @@ public class MainActivity extends AppCompatActivity {
 
     FaceDetectorOptions highAccuracyOpts =
             new FaceDetectorOptions.Builder()
-                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
                     .setClassificationMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
                     .build();
 
-    FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
-
     private Handler mHandler = new Handler();
     private int imageCount = 0;
+
+    private CameraSource mCameraSource = null;
+
+    private CameraSourcePreview mPreview;
+    private GraphicOverlay mGraphicOverlay;
 
     /**
      * Show message on the screen
@@ -408,31 +421,31 @@ public class MainActivity extends AppCompatActivity {
                     //msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
 
-                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
-
-
-                    if (imageCount % FRAME_RATE == 0) {
-                        Task<List<Face>> result =
-                                detector.process(image)
-                                        .addOnSuccessListener(
-                                                new OnSuccessListener<List<Face>>() {
-                                                    @Override
-                                                    public void onSuccess(List<Face> faces) {
-                                                        Log.d(TAG, "onSuccess: " + faces);
-                                                        // Task completed successfully
-                                                        // ...
-                                                        for (Face face : faces) {
-                                                            Rect bounds = face.getBoundingBox();
-//                                                            Rect bounds = new Rect(200, 200, 600, 600);
-                                                            myView.setRect(bounds);
-
-//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
-//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
-//                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
-                                                        }
-                                                    }
-                                                });
-                    }
+//                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
+//
+//
+//                    if (imageCount % FRAME_RATE == 0) {
+//                        Task<List<Face>> result =
+//                                detector.process(image)
+//                                        .addOnSuccessListener(
+//                                                new OnSuccessListener<List<Face>>() {
+//                                                    @Override
+//                                                    public void onSuccess(List<Face> faces) {
+//                                                        Log.d(TAG, "onSuccess: " + faces);
+//                                                        // Task completed successfully
+//                                                        // ...
+//                                                        for (Face face : faces) {
+//                                                            Rect bounds = face.getBoundingBox();
+////                                                            Rect bounds = new Rect(200, 200, 600, 600);
+//                                                            myView.setRect(bounds);
+//
+////                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
+////                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
+////                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
+//                                                        }
+//                                                    }
+//                                                });
+//                    }
                 }
             });
 
@@ -533,6 +546,136 @@ public class MainActivity extends AppCompatActivity {
         resultTextView = findViewById(R.id.result_text);
 
         myView = findViewById(R.id.myView);
+
+        mPreview = (CameraSourcePreview) findViewById(R.id.preview);
+        mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+
+        // Check for the camera permission before accessing the camera.  If the
+        // permission is not granted yet, request permission.
+        int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
+        if (rc == PackageManager.PERMISSION_GRANTED) {
+            createCameraSource();
+        } else {
+            requestCameraPermission();
+        }
+    }
+
+    private void requestCameraPermission() {
+        Log.w(TAG, "Camera permission is not granted. Requesting permission");
+
+        final String[] permissions = new String[]{Manifest.permission.CAMERA};
+
+        if (!ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.CAMERA)) {
+            ActivityCompat.requestPermissions(this, permissions, RC_HANDLE_CAMERA_PERM);
+            return;
+        }
+
+        final Activity thisActivity = this;
+
+        View.OnClickListener listener = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ActivityCompat.requestPermissions(thisActivity, permissions,
+                        RC_HANDLE_CAMERA_PERM);
+            }
+        };
+
+    }
+
+    private void createCameraSource() {
+        FaceDetector detector = new FaceDetector.Builder(this)
+                .setClassificationType(FaceDetector.ALL_CLASSIFICATIONS)
+                .build();
+
+        detector.setProcessor(
+                new MultiProcessor.Builder<>(new GraphicFaceTrackerFactory())
+                        .build());
+
+        mCameraSource = new CameraSource.Builder(this, detector)
+                .setRequestedPreviewSize(640, 480)
+                .setFacing(CameraSource.CAMERA_FACING_FRONT)
+                .setRequestedFps(30.0f)
+                .build();
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        startCameraSource();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mPreview.stop();
+    }
+
+    private void startCameraSource() {
+        if (mCameraSource != null) {
+            try {
+                mPreview.start(mCameraSource, mGraphicOverlay);
+            } catch (IOException e) {
+                Log.e(TAG, "Unable to start camera source.", e);
+                mCameraSource.release();
+                mCameraSource = null;
+            }
+        }
+    }
+
+    private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
+        @Override
+        public Tracker<Face> create(Face face) {
+            return new GraphicFaceTracker(mGraphicOverlay);
+        }
+    }
+
+    private static class GraphicFaceTracker extends Tracker<Face> {
+        private GraphicOverlay mOverlay;
+        private FaceGraphic mFaceGraphic;
+
+        GraphicFaceTracker(GraphicOverlay overlay) {
+            mOverlay = overlay;
+            mFaceGraphic = new FaceGraphic(overlay);
+        }
+
+        /**
+         * Start tracking the detected face instance within the face overlay.
+         */
+        @Override
+        public void onNewItem(int faceId, Face item) {
+            mFaceGraphic.setId(faceId);
+        }
+
+        /**
+         * Update the position/characteristics of the face within the overlay.
+         */
+        @Override
+        public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
+            mOverlay.add(mFaceGraphic);
+            mFaceGraphic.updateFace(face);
+        }
+
+        /**
+         * Hide the graphic when the corresponding face was not detected.  This can happen for
+         * intermediate frames temporarily (e.g., if the face was momentarily blocked from
+         * view).
+         */
+        @Override
+        public void onMissing(FaceDetector.Detections<Face> detectionResults) {
+            mOverlay.remove(mFaceGraphic);
+        }
+
+        /**
+         * Called when the face is assumed to be gone for good. Remove the graphic annotation from
+         * the overlay.
+         */
+        @Override
+        public void onDone() {
+            mOverlay.remove(mFaceGraphic);
+        }
     }
 
     @Override
@@ -570,6 +713,9 @@ public class MainActivity extends AppCompatActivity {
             mTTS2.stop();
             mTTS1.shutdown();
             mTTS2.shutdown();
+        }
+        if (mCameraSource != null) {
+            mCameraSource.release();
         }
         super.onDestroy();
     }

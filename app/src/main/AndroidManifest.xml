@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.samples.flironecamera" >
 
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <!-- some hw might not support Usb Host mode so it's recommended to add this -->
     <uses-feature android:name="android.hardware.usb.host" />
 
