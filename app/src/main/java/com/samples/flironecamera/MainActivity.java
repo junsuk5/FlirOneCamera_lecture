@@ -643,6 +643,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onNewItem(int faceId, Face item) {
             mFaceGraphic.setId(faceId);
+            mOverlay.add(mFaceGraphic);
         }
 
         /**
@@ -650,7 +651,6 @@ public class MainActivity extends AppCompatActivity {
          */
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
-            mOverlay.add(mFaceGraphic);
             mFaceGraphic.updateFace(face);
         }
 
