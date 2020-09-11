@@ -543,10 +543,6 @@ public class MainActivity extends AppCompatActivity {
         //msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
 
-        resultTextView = findViewById(R.id.result_text);
-
-        myView = findViewById(R.id.myView);
-
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
 
