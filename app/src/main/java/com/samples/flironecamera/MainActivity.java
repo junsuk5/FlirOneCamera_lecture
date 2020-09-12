@@ -17,7 +17,6 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
@@ -37,6 +36,7 @@ import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.BuildConfig;
 import com.flir.thermalsdk.androidsdk.ThermalSdkAndroid;
 import com.flir.thermalsdk.androidsdk.live.connectivity.UsbPermissionHandler;
+import com.flir.thermalsdk.image.Rectangle;
 import com.flir.thermalsdk.image.ThermalImage;
 import com.flir.thermalsdk.live.CommunicationInterface;
 import com.flir.thermalsdk.live.Identity;
@@ -48,12 +48,12 @@ import com.google.android.gms.vision.MultiProcessor;
 import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
 import com.samples.flironecamera.camera.CameraSourcePreview;
 import com.samples.flironecamera.camera.FaceGraphic;
 import com.samples.flironecamera.camera.GraphicOverlay;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -98,24 +98,17 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech mTTS2;
     private TextView textView1;
     private TextView textView2;
-    private MyView myView;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
-
-    FaceDetectorOptions highAccuracyOpts =
-            new FaceDetectorOptions.Builder()
-                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                    .setClassificationMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                    .build();
-
-    private Handler mHandler = new Handler();
-    private int imageCount = 0;
 
     private CameraSource mCameraSource = null;
 
     private CameraSourcePreview mPreview;
     private GraphicOverlay mGraphicOverlay;
+    private ThermalImage mThermalImage;
+
+    private double mTemp;
 
     /**
      * Show message on the screen
@@ -405,7 +398,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(Bitmap msxBitmap, Bitmap dcBitmap) {
-            imageCount++;
             try {
                 framesBuffer.put(new FrameDataHolder(msxBitmap, dcBitmap));
             } catch (InterruptedException e) {
@@ -424,28 +416,6 @@ public class MainActivity extends AppCompatActivity {
 //                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
 //
 //
-//                    if (imageCount % FRAME_RATE == 0) {
-//                        Task<List<Face>> result =
-//                                detector.process(image)
-//                                        .addOnSuccessListener(
-//                                                new OnSuccessListener<List<Face>>() {
-//                                                    @Override
-//                                                    public void onSuccess(List<Face> faces) {
-//                                                        Log.d(TAG, "onSuccess: " + faces);
-//                                                        // Task completed successfully
-//                                                        // ...
-//                                                        for (Face face : faces) {
-//                                                            Rect bounds = face.getBoundingBox();
-////                                                            Rect bounds = new Rect(200, 200, 600, 600);
-//                                                            myView.setRect(bounds);
-//
-////                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
-////                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
-////                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
-//                                                        }
-//                                                    }
-//                                                });
-//                    }
                 }
             });
 
@@ -453,29 +423,23 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(ThermalImage thermalImage) {
+            mThermalImage = thermalImage;
             // TODO MyView(myView.getWidth(), myView.getHeight()) 와 ThermalImage(480, 640) 사이즈 보정
             // 얼굴 예 : Rect(382, 671 - 804, 1093) =>
-            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
-            Log.d(TAG, "MyView" + myView.getWidth() + ", " + myView.getHeight());
+//            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
 
-            Rect bounds = new Rect(200, 200, 600, 600);
-//            Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
-//                    bounds.right - bounds.left, bounds.bottom - bounds.top);
-//            double[] result = thermalImage.getValues(rectangle);
-//
-//            Arrays.sort(result);
-//
-//            double maxTemp = result[result.length - 1] - 273.15;
+            if (!mGraphicOverlay.mGraphics.isEmpty()) {
+                Face face = ((FaceGraphic)mGraphicOverlay.mGraphics.iterator().next()).mFace;
+                mTemp = calcTemp(face, thermalImage);
+            }
 
-            double maxTemp = (thermalImage.getScale().getRangeMax() - 273.15);
 
             // UI 스레드 작업
             runOnUiThread(() -> {
-                resultTextView.setText(String.format("%.2f", maxTemp));
                 backgroundView.setBackgroundColor(Color.WHITE);
                 textView1.setVisibility(View.VISIBLE);
 
-                if (maxTemp > 38) {
+                if (mTemp > 38) {
                     backgroundView.setBackgroundColor(Color.RED);
                     resultTextView.setTextColor(Color.RED);
                     textView2.setVisibility(View.VISIBLE);
@@ -529,12 +493,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private void showSDKversion(String version) {
-        TextView sdkVersionTextView = findViewById(R.id.sdk_version);
-        String sdkVersionText = getString(R.string.sdk_version_text, version);
-        sdkVersionTextView.setText(sdkVersionText);
-    }
-
     private void setupViews() {
         //connectionStatus = findViewById(R.id.connection_status_text);
         //discoveryStatus = findViewById(R.id.discovery_status);
@@ -542,6 +500,8 @@ public class MainActivity extends AppCompatActivity {
 
         //msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
+
+        resultTextView = findViewById(R.id.result_textView);
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
@@ -621,10 +581,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    FaceGraphic.ITemp iTemp = new FaceGraphic.ITemp() {
+        @Override
+        public double getTemp() {
+            return mTemp;
+        }
+    };
+
     private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
         @Override
         public Tracker<Face> create(Face face) {
-            return new GraphicFaceTracker(mGraphicOverlay);
+            return new GraphicFaceTracker(mGraphicOverlay, iTemp);
         }
     }
 
@@ -632,9 +599,9 @@ public class MainActivity extends AppCompatActivity {
         private GraphicOverlay mOverlay;
         private FaceGraphic mFaceGraphic;
 
-        GraphicFaceTracker(GraphicOverlay overlay) {
+        GraphicFaceTracker(GraphicOverlay overlay, FaceGraphic.ITemp iTemp) {
             mOverlay = overlay;
-            mFaceGraphic = new FaceGraphic(overlay);
+            mFaceGraphic = new FaceGraphic(overlay, iTemp);
         }
 
         /**
@@ -652,6 +619,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             mFaceGraphic.updateFace(face);
+
+            Log.d(TAG, "onUpdate: " + face.getPosition() + ", width: " + face.getWidth() + ", height: " + face.getHeight());
         }
 
         /**
@@ -714,5 +683,32 @@ public class MainActivity extends AppCompatActivity {
             mCameraSource.release();
         }
         super.onDestroy();
+    }
+
+    public double calcTemp(Face face, ThermalImage thermalImage) {
+        if (thermalImage == null || face == null) {
+            return 0.0;
+        }
+
+        int x = face.getPosition().x < 0 ? 0 : (int) face.getPosition().x;
+        int y = face.getPosition().y < 0 ? 0 : (int) face.getPosition().y;
+        int w = face.getPosition().x + face.getWidth() > thermalImage.getWidth()
+                ? thermalImage.getWidth()
+                : (int) (face.getPosition().x + face.getWidth());
+
+        int h = face.getPosition().y + face.getHeight() > thermalImage.getHeight()
+                ? thermalImage.getHeight()
+                : (int) (face.getPosition().y + face.getHeight());
+
+
+        Rect bounds = new Rect(x, y, w, h);
+        Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
+                bounds.right - bounds.left, bounds.bottom - bounds.top);
+        double[] result = thermalImage.getValues(rectangle);
+
+        Arrays.sort(result);
+
+        double maxTemp = result[result.length - 1] - 273.15;
+        return maxTemp;
     }
 }

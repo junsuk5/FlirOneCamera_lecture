@@ -7,6 +7,12 @@ import android.graphics.Paint;
 import com.google.android.gms.vision.face.Face;
 
 public class FaceGraphic extends GraphicOverlay.Graphic {
+    public interface ITemp {
+        double getTemp();
+    }
+
+    private ITemp mITemp;
+
     private static final float ID_TEXT_SIZE = 40.0f;
     private static final float ID_Y_OFFSET = 50.0f;
     private static final float ID_X_OFFSET = -50.0f;
@@ -27,11 +33,12 @@ public class FaceGraphic extends GraphicOverlay.Graphic {
     private Paint mIdPaint;
     private Paint mBoxPaint;
 
-    protected volatile Face mFace;
+    public volatile Face mFace;
     private int mFaceId;
 
-    public FaceGraphic(GraphicOverlay overlay) {
+    public FaceGraphic(GraphicOverlay overlay, ITemp iTemp) {
         super(overlay);
+        mITemp = iTemp;
 
         mCurrentColorIndex = (mCurrentColorIndex + 1) % COLOR_CHOICES.length;
         final int selectedColor = COLOR_CHOICES[mCurrentColorIndex];
@@ -75,7 +82,11 @@ public class FaceGraphic extends GraphicOverlay.Graphic {
 
         float x = translateX(face.getPosition().x + face.getWidth() / 2);
         float y = translateY(face.getPosition().y + face.getHeight() / 2);
-        canvas.drawText("36.5", x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
+        canvas.drawText("" + String.format("%.2f", mITemp.getTemp()), x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
+        canvas.drawText("x: " + face.getPosition().x, x + ID_X_OFFSET, y + ID_Y_OFFSET * 2, mIdPaint);
+        canvas.drawText("y: " + face.getPosition().y, x + ID_X_OFFSET, y + ID_Y_OFFSET * 3, mIdPaint);
+        canvas.drawText("width: " + face.getWidth(), x + ID_X_OFFSET, y + ID_Y_OFFSET * 4, mIdPaint);
+        canvas.drawText("height: " + face.getHeight(), x + ID_X_OFFSET, y + ID_Y_OFFSET * 5, mIdPaint);
 
         // Draws a bounding box around the face.
         float xOffset = scaleX(face.getWidth() / 2.0f);
