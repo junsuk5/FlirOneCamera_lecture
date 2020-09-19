@@ -51,6 +51,7 @@ import com.google.android.gms.vision.face.FaceDetector;
 import com.samples.flironecamera.camera.CameraSourcePreview;
 import com.samples.flironecamera.camera.FaceGraphic;
 import com.samples.flironecamera.camera.GraphicOverlay;
+import com.samples.flironecamera.network.RobotService;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -60,6 +61,12 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 /**
  * Sample application for scanning a FLIR ONE or a built in emulator
@@ -111,6 +118,9 @@ public class MainActivity extends AppCompatActivity {
     private ThermalImage mThermalImage;
 
     private Map<Integer, PersonData> mTempMap = new HashMap<>();
+
+    private RobotService mService;
+
     /**
      * Show message on the screen
      */
@@ -122,6 +132,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(RobotService.BASE_URL)
+                .build();
+        mService = retrofit.create(RobotService.class);
+
 
         ThermalLog.LogLevel enableLoggingInDebug = BuildConfig.DEBUG ? ThermalLog.LogLevel.DEBUG : ThermalLog.LogLevel.NONE;
 
@@ -433,6 +449,18 @@ public class MainActivity extends AppCompatActivity {
                 Face face = ((FaceGraphic)mGraphicOverlay.mGraphics.iterator().next()).mFace;
                 PersonData data = new PersonData(face, calcTemp(face, thermalImage));
                 mTempMap.put(face.getId(), data);
+
+                mService.sendData(face.getId(), data.getTemp()).enqueue(new Callback<ResponseBody>() {
+                    @Override
+                    public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                        Log.d(TAG, "onResponse: " + response.code());
+                    }
+
+                    @Override
+                    public void onFailure(Call<ResponseBody> call, Throwable t) {
+                        Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
 
 
