@@ -5,7 +5,7 @@ android {
 
     defaultConfig {
         applicationId "com.samples.flironecamera"
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
@@ -39,6 +39,9 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
-    implementation 'com.google.android.gms:play-services-mlkit-face-detection:16.1.0'
+    implementation 'com.google.android.gms:play-services-mlkit-face-detection:16.1.1'
+
+    implementation 'com.squareup.retrofit2:retrofit:2.7.1'
+
 }
 

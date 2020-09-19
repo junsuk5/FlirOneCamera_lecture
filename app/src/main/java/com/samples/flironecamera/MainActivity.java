@@ -10,11 +10,13 @@
  * ******************************************************************/
 package com.samples.flironecamera;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
@@ -28,31 +30,43 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.BuildConfig;
 import com.flir.thermalsdk.androidsdk.ThermalSdkAndroid;
 import com.flir.thermalsdk.androidsdk.live.connectivity.UsbPermissionHandler;
+import com.flir.thermalsdk.image.Rectangle;
 import com.flir.thermalsdk.image.ThermalImage;
 import com.flir.thermalsdk.live.CommunicationInterface;
 import com.flir.thermalsdk.live.Identity;
 import com.flir.thermalsdk.live.connectivity.ConnectionStatusListener;
 import com.flir.thermalsdk.live.discovery.DiscoveryEventListener;
 import com.flir.thermalsdk.log.ThermalLog;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetector;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
+import com.google.android.gms.vision.CameraSource;
+import com.google.android.gms.vision.MultiProcessor;
+import com.google.android.gms.vision.Tracker;
+import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.FaceDetector;
+import com.samples.flironecamera.camera.CameraSourcePreview;
+import com.samples.flironecamera.camera.FaceGraphic;
+import com.samples.flironecamera.camera.GraphicOverlay;
+import com.samples.flironecamera.network.RobotService;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 /**
  * Sample application for scanning a FLIR ONE or a built in emulator
@@ -64,6 +78,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Please note, this is <b>NOT</b> production quality code, error handling has been kept to a minimum to keep the code as clear and concise as possible
  */
 public class MainActivity extends AppCompatActivity {
+
+    private static final int RC_HANDLE_GMS = 9001;
+    // permission request codes need to be < 256
+    private static final int RC_HANDLE_CAMERA_PERM = 2;
+
 
     private static final String TAG = "MainActivity";
     private static final int FRAME_RATE = 10;
@@ -88,21 +107,19 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech mTTS2;
     private TextView textView1;
     private TextView textView2;
-    private MyView myView;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
 
-    FaceDetectorOptions highAccuracyOpts =
-            new FaceDetectorOptions.Builder()
-                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                    .setClassificationMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                    .build();
+    private CameraSource mCameraSource = null;
 
-    FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
+    private CameraSourcePreview mPreview;
+    private GraphicOverlay mGraphicOverlay;
+    private ThermalImage mThermalImage;
 
-    private Handler mHandler = new Handler();
-    private int imageCount = 0;
+    private Map<Integer, PersonData> mTempMap = new HashMap<>();
+
+    private RobotService mService;
 
     /**
      * Show message on the screen
@@ -115,6 +132,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(RobotService.BASE_URL)
+                .build();
+        mService = retrofit.create(RobotService.class);
+
 
         ThermalLog.LogLevel enableLoggingInDebug = BuildConfig.DEBUG ? ThermalLog.LogLevel.DEBUG : ThermalLog.LogLevel.NONE;
 
@@ -392,7 +415,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(Bitmap msxBitmap, Bitmap dcBitmap) {
-            imageCount++;
             try {
                 framesBuffer.put(new FrameDataHolder(msxBitmap, dcBitmap));
             } catch (InterruptedException e) {
@@ -408,31 +430,9 @@ public class MainActivity extends AppCompatActivity {
                     //msxImage.setImageBitmap(poll.msxBitmap);
                     photoImage.setImageBitmap(poll.dcBitmap);
 
-                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
-
-
-                    if (imageCount % FRAME_RATE == 0) {
-                        Task<List<Face>> result =
-                                detector.process(image)
-                                        .addOnSuccessListener(
-                                                new OnSuccessListener<List<Face>>() {
-                                                    @Override
-                                                    public void onSuccess(List<Face> faces) {
-                                                        Log.d(TAG, "onSuccess: " + faces);
-                                                        // Task completed successfully
-                                                        // ...
-                                                        for (Face face : faces) {
-                                                            Rect bounds = face.getBoundingBox();
-//                                                            Rect bounds = new Rect(200, 200, 600, 600);
-                                                            myView.setRect(bounds);
-
-//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getWidth());
-//                                                        Log.d(TAG, "onSuccess: " + poll.dcBitmap.getHeight());
-//                                                        Log.d(TAG, "onSuccess: " + bounds.toShortString());
-                                                        }
-                                                    }
-                                                });
-                    }
+//                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
+//
+//
                 }
             });
 
@@ -440,27 +440,38 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(ThermalImage thermalImage) {
+            mThermalImage = thermalImage;
             // TODO MyView(myView.getWidth(), myView.getHeight()) 와 ThermalImage(480, 640) 사이즈 보정
             // 얼굴 예 : Rect(382, 671 - 804, 1093) =>
-            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
-            Log.d(TAG, "MyView" + myView.getWidth() + ", " + myView.getHeight());
+//            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
 
-            Rect bounds = new Rect(200, 200, 600, 600);
-//            Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
-//                    bounds.right - bounds.left, bounds.bottom - bounds.top);
-//            double[] result = thermalImage.getValues(rectangle);
-//
-//            Arrays.sort(result);
-//
-//            double maxTemp = result[result.length - 1] - 273.15;
+            if (!mGraphicOverlay.mGraphics.isEmpty()) {
+                Face face = ((FaceGraphic)mGraphicOverlay.mGraphics.iterator().next()).mFace;
+                PersonData data = new PersonData(face, calcTemp(face, thermalImage));
+                mTempMap.put(face.getId(), data);
 
-            double maxTemp = (thermalImage.getScale().getRangeMax() - 273.15);
+                mService.sendData(face.getId(), data.getTemp()).enqueue(new Callback<ResponseBody>() {
+                    @Override
+                    public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                        Log.d(TAG, "onResponse: " + response.code());
+                    }
+
+                    @Override
+                    public void onFailure(Call<ResponseBody> call, Throwable t) {
+                        Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
 
             // UI 스레드 작업
             runOnUiThread(() -> {
-                resultTextView.setText(String.format("%.2f", maxTemp));
                 backgroundView.setBackgroundColor(Color.WHITE);
                 textView1.setVisibility(View.VISIBLE);
+
+                double maxTemp = mTempMap.values().stream()
+                        .map(PersonData::getTemp)
+                        .max(Double::compare).orElse(0.0);
 
                 if (maxTemp > 38) {
                     backgroundView.setBackgroundColor(Color.RED);
@@ -516,12 +527,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private void showSDKversion(String version) {
-        TextView sdkVersionTextView = findViewById(R.id.sdk_version);
-        String sdkVersionText = getString(R.string.sdk_version_text, version);
-        sdkVersionTextView.setText(sdkVersionText);
-    }
-
     private void setupViews() {
         //connectionStatus = findViewById(R.id.connection_status_text);
         //discoveryStatus = findViewById(R.id.discovery_status);
@@ -530,9 +535,146 @@ public class MainActivity extends AppCompatActivity {
         //msxImage = findViewById(R.id.msx_image);
         photoImage = findViewById(R.id.photo_image);
 
-        resultTextView = findViewById(R.id.result_text);
+        resultTextView = findViewById(R.id.result_textView);
 
-        myView = findViewById(R.id.myView);
+        mPreview = (CameraSourcePreview) findViewById(R.id.preview);
+        mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+
+        // Check for the camera permission before accessing the camera.  If the
+        // permission is not granted yet, request permission.
+        int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
+        if (rc == PackageManager.PERMISSION_GRANTED) {
+            createCameraSource();
+        } else {
+            requestCameraPermission();
+        }
+    }
+
+    private void requestCameraPermission() {
+        Log.w(TAG, "Camera permission is not granted. Requesting permission");
+
+        final String[] permissions = new String[]{Manifest.permission.CAMERA};
+
+        if (!ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.CAMERA)) {
+            ActivityCompat.requestPermissions(this, permissions, RC_HANDLE_CAMERA_PERM);
+            return;
+        }
+
+        final Activity thisActivity = this;
+
+        View.OnClickListener listener = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ActivityCompat.requestPermissions(thisActivity, permissions,
+                        RC_HANDLE_CAMERA_PERM);
+            }
+        };
+
+    }
+
+    private void createCameraSource() {
+        FaceDetector detector = new FaceDetector.Builder(this)
+                .setClassificationType(FaceDetector.ALL_CLASSIFICATIONS)
+                .build();
+
+        detector.setProcessor(
+                new MultiProcessor.Builder<>(new GraphicFaceTrackerFactory())
+                        .build());
+
+        mCameraSource = new CameraSource.Builder(this, detector)
+                .setRequestedPreviewSize(640, 480)
+                .setFacing(CameraSource.CAMERA_FACING_FRONT)
+                .setRequestedFps(30.0f)
+                .build();
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        startCameraSource();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mPreview.stop();
+    }
+
+    private void startCameraSource() {
+        if (mCameraSource != null) {
+            try {
+                mPreview.start(mCameraSource, mGraphicOverlay);
+            } catch (IOException e) {
+                Log.e(TAG, "Unable to start camera source.", e);
+                mCameraSource.release();
+                mCameraSource = null;
+            }
+        }
+    }
+
+    FaceGraphic.ITemp iTemp = new FaceGraphic.ITemp() {
+        @Override
+        public double getTemp(int faceId) {
+            return mTempMap.get(faceId) == null ? 0.0 : mTempMap.get(faceId).getTemp();
+        }
+    };
+
+    private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
+        @Override
+        public Tracker<Face> create(Face face) {
+            return new GraphicFaceTracker(mGraphicOverlay, iTemp);
+        }
+    }
+
+    private static class GraphicFaceTracker extends Tracker<Face> {
+        private GraphicOverlay mOverlay;
+        private FaceGraphic mFaceGraphic;
+
+        GraphicFaceTracker(GraphicOverlay overlay, FaceGraphic.ITemp iTemp) {
+            mOverlay = overlay;
+            mFaceGraphic = new FaceGraphic(overlay, iTemp);
+        }
+
+        /**
+         * Start tracking the detected face instance within the face overlay.
+         */
+        @Override
+        public void onNewItem(int faceId, Face item) {
+            mFaceGraphic.setId(faceId);
+            mOverlay.add(mFaceGraphic);
+        }
+
+        /**
+         * Update the position/characteristics of the face within the overlay.
+         */
+        @Override
+        public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
+            mFaceGraphic.updateFace(face);
+
+            Log.d(TAG, "onUpdate: " + face.getPosition() + ", width: " + face.getWidth() + ", height: " + face.getHeight());
+        }
+
+        /**
+         * Hide the graphic when the corresponding face was not detected.  This can happen for
+         * intermediate frames temporarily (e.g., if the face was momentarily blocked from
+         * view).
+         */
+        @Override
+        public void onMissing(FaceDetector.Detections<Face> detectionResults) {
+            mOverlay.remove(mFaceGraphic);
+        }
+
+        /**
+         * Called when the face is assumed to be gone for good. Remove the graphic annotation from
+         * the overlay.
+         */
+        @Override
+        public void onDone() {
+            mOverlay.remove(mFaceGraphic);
+        }
     }
 
     @Override
@@ -571,6 +713,36 @@ public class MainActivity extends AppCompatActivity {
             mTTS1.shutdown();
             mTTS2.shutdown();
         }
+        if (mCameraSource != null) {
+            mCameraSource.release();
+        }
         super.onDestroy();
+    }
+
+    public double calcTemp(Face face, ThermalImage thermalImage) {
+        if (thermalImage == null || face == null) {
+            return 0.0;
+        }
+
+        int x = face.getPosition().x < 0 ? 0 : (int) face.getPosition().x;
+        int y = face.getPosition().y < 0 ? 0 : (int) face.getPosition().y;
+        int w = face.getPosition().x + face.getWidth() > thermalImage.getWidth()
+                ? thermalImage.getWidth()
+                : (int) (face.getPosition().x + face.getWidth());
+
+        int h = face.getPosition().y + face.getHeight() > thermalImage.getHeight()
+                ? thermalImage.getHeight()
+                : (int) (face.getPosition().y + face.getHeight());
+
+
+        Rect bounds = new Rect(x, y, w, h);
+        Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
+                bounds.right - bounds.left, bounds.bottom - bounds.top);
+        double[] result = thermalImage.getValues(rectangle);
+
+        Arrays.sort(result);
+
+        double maxTemp = result[result.length - 1] - 273.15;
+        return maxTemp;
     }
 }
