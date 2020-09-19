@@ -54,7 +54,9 @@ import com.samples.flironecamera.camera.GraphicOverlay;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -108,8 +110,7 @@ public class MainActivity extends AppCompatActivity {
     private GraphicOverlay mGraphicOverlay;
     private ThermalImage mThermalImage;
 
-    private double mTemp;
-
+    private Map<Integer, PersonData> mTempMap = new HashMap<>();
     /**
      * Show message on the screen
      */
@@ -430,7 +431,8 @@ public class MainActivity extends AppCompatActivity {
 
             if (!mGraphicOverlay.mGraphics.isEmpty()) {
                 Face face = ((FaceGraphic)mGraphicOverlay.mGraphics.iterator().next()).mFace;
-                mTemp = calcTemp(face, thermalImage);
+                PersonData data = new PersonData(face, calcTemp(face, thermalImage));
+                mTempMap.put(face.getId(), data);
             }
 
 
@@ -439,7 +441,11 @@ public class MainActivity extends AppCompatActivity {
                 backgroundView.setBackgroundColor(Color.WHITE);
                 textView1.setVisibility(View.VISIBLE);
 
-                if (mTemp > 38) {
+                double maxTemp = mTempMap.values().stream()
+                        .map(PersonData::getTemp)
+                        .max(Double::compare).orElse(0.0);
+
+                if (maxTemp > 38) {
                     backgroundView.setBackgroundColor(Color.RED);
                     resultTextView.setTextColor(Color.RED);
                     textView2.setVisibility(View.VISIBLE);
@@ -583,8 +589,8 @@ public class MainActivity extends AppCompatActivity {
 
     FaceGraphic.ITemp iTemp = new FaceGraphic.ITemp() {
         @Override
-        public double getTemp() {
-            return mTemp;
+        public double getTemp(int faceId) {
+            return mTempMap.get(faceId) == null ? 0.0 : mTempMap.get(faceId).getTemp();
         }
     };
 

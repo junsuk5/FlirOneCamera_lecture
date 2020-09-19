@@ -8,7 +8,7 @@ import com.google.android.gms.vision.face.Face;
 
 public class FaceGraphic extends GraphicOverlay.Graphic {
     public interface ITemp {
-        double getTemp();
+        double getTemp(int faceId);
     }
 
     private ITemp mITemp;
@@ -76,13 +76,14 @@ public class FaceGraphic extends GraphicOverlay.Graphic {
     @Override
     public void draw(Canvas canvas) {
         Face face = mFace;
+
         if (face == null) {
             return;
         }
 
         float x = translateX(face.getPosition().x + face.getWidth() / 2);
         float y = translateY(face.getPosition().y + face.getHeight() / 2);
-        canvas.drawText("" + String.format("%.2f", mITemp.getTemp()), x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
+        canvas.drawText("" + String.format("%.2f", mITemp.getTemp(face.getId())), x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
         canvas.drawText("x: " + face.getPosition().x, x + ID_X_OFFSET, y + ID_Y_OFFSET * 2, mIdPaint);
         canvas.drawText("y: " + face.getPosition().y, x + ID_X_OFFSET, y + ID_Y_OFFSET * 3, mIdPaint);
         canvas.drawText("width: " + face.getWidth(), x + ID_X_OFFSET, y + ID_Y_OFFSET * 4, mIdPaint);
