@@ -6,7 +6,7 @@ import retrofit2.http.GET;
 import retrofit2.http.Query;
 
 public interface RobotService {
-    String BASE_URL = "http://192.168.0.28:8000/";
+    String BASE_URL = "http://192.168.0.28:8000";
 
     @GET("robot")
     Call<ResponseBody> sendData(
