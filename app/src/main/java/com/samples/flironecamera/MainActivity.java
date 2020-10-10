@@ -24,7 +24,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ImageView;
+import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
 //    private TextView discoveryStatus;
 //
 //    private ImageView msxImage;
-    private ImageView photoImage;
+//    private ImageView photoImage;
 
     private TextView resultTextView;
     private LinearLayout backgroundView;
@@ -132,6 +132,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -148,20 +150,20 @@ public class MainActivity extends AppCompatActivity {
         mService = retrofit.create(RobotService.class);
 
 
-        findViewById(R.id.button).setOnClickListener(v -> {
-            mService.sendData(10, 36.5).enqueue(new Callback<ResponseBody>() {
-                @Override
-                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                    Log.d(TAG, "onResponse: " + response.code());
-                }
-
-                @Override
-                public void onFailure(Call<ResponseBody> call, Throwable t) {
-                    Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                    Log.d(TAG, "onFailure: " + t.getMessage());
-                }
-            });
-        });
+//        findViewById(R.id.button).setOnClickListener(v -> {
+//            mService.sendData(10, 36.5).enqueue(new Callback<ResponseBody>() {
+//                @Override
+//                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+//                    Log.d(TAG, "onResponse: " + response.code());
+//                }
+//
+//                @Override
+//                public void onFailure(Call<ResponseBody> call, Throwable t) {
+//                    Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+//                    Log.d(TAG, "onFailure: " + t.getMessage());
+//                }
+//            });
+//        });
 
         ThermalLog.LogLevel enableLoggingInDebug = BuildConfig.DEBUG ? ThermalLog.LogLevel.DEBUG : ThermalLog.LogLevel.NONE;
 
@@ -432,7 +434,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     //msxImage.setImageBitmap(dataHolder.msxBitmap);
-                    photoImage.setImageBitmap(dataHolder.dcBitmap);
+//                    photoImage.setImageBitmap(dataHolder.dcBitmap);
                 }
             });
         }
@@ -452,7 +454,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "framebuffer size:" + framesBuffer.size());
                     FrameDataHolder poll = framesBuffer.poll();
                     //msxImage.setImageBitmap(poll.msxBitmap);
-                    photoImage.setImageBitmap(poll.dcBitmap);
+//                    photoImage.setImageBitmap(poll.dcBitmap);
 
 //                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
 //
@@ -485,6 +487,10 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
+            } else {
+                backgroundView.setBackgroundColor(Color.WHITE);
+                resultTextView.setTextColor(Color.GREEN);
+                textView2.setVisibility(View.GONE);
             }
 
 
@@ -557,7 +563,7 @@ public class MainActivity extends AppCompatActivity {
         backgroundView = findViewById(R.id.background);
 
         //msxImage = findViewById(R.id.msx_image);
-        photoImage = findViewById(R.id.photo_image);
+//        photoImage = findViewById(R.id.photo_image);
 
         resultTextView = findViewById(R.id.result_textView);
 
@@ -748,18 +754,18 @@ public class MainActivity extends AppCompatActivity {
             return 0.0;
         }
 
-        int x = face.getPosition().x < 0 ? 0 : (int) face.getPosition().x;
-        int y = face.getPosition().y < 0 ? 0 : (int) face.getPosition().y;
-        int w = face.getPosition().x + face.getWidth() > thermalImage.getWidth()
+        int l = face.getPosition().x < 0 ? 0 : (int) face.getPosition().x;
+        int t = face.getPosition().y < 0 ? 0 : (int) face.getPosition().y;
+        int r = face.getPosition().x + face.getWidth() > thermalImage.getWidth()
                 ? thermalImage.getWidth()
                 : (int) (face.getPosition().x + face.getWidth());
 
-        int h = face.getPosition().y + face.getHeight() > thermalImage.getHeight()
+        int b = face.getPosition().y + face.getHeight() > thermalImage.getHeight()
                 ? thermalImage.getHeight()
                 : (int) (face.getPosition().y + face.getHeight());
 
+        Rect bounds = new Rect(l, t, r, b);
 
-        Rect bounds = new Rect(x, y, w, h);
         Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
                 bounds.right - bounds.left, bounds.bottom - bounds.top);
         double[] result = thermalImage.getValues(rectangle);
