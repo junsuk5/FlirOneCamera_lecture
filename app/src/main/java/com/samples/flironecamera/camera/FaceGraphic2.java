@@ -49,6 +49,6 @@ public class FaceGraphic2 extends GraphicOverlay.Graphic {
         float x = (rect.right + rect.left) / 2.0f;
         float y = (rect.top + rect.bottom) / 2.0f;
 
-        canvas.drawText("온도", x, y, mIdPaint);
+        canvas.drawText("id: " + face.getTrackingId(), x, y, mIdPaint);
     }
 }

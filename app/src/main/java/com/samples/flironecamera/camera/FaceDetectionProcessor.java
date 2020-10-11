@@ -22,6 +22,7 @@ public class FaceDetectionProcessor implements ImageAnalysis.Analyzer {
     private GraphicOverlay graphicOverlay;
 
     private FaceDetectorOptions realTimeOpts = new FaceDetectorOptions.Builder()
+            .enableTracking()
             .build();
 
     private FaceDetector detector = FaceDetection.getClient(realTimeOpts);

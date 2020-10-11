@@ -147,14 +147,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        PreviewView previewView = findViewById(R.id.previewView_finder);
-        GraphicOverlay graphicOverlay = findViewById(R.id.faceOverlay2);
-
-        cameraManager = new CameraManager(this,
-                previewView,
-                this,
-                graphicOverlay);
-
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
@@ -598,6 +590,16 @@ public class MainActivity extends AppCompatActivity {
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+
+        // ML Kit
+        PreviewView previewView = findViewById(R.id.previewView_finder);
+        mGraphicOverlay = findViewById(R.id.faceOverlay2);
+
+        cameraManager = new CameraManager(this,
+                previewView,
+                this,
+                mGraphicOverlay);
+
 
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.
