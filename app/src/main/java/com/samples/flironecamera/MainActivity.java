@@ -33,6 +33,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 
 import com.flir.thermalsdk.ErrorCode;
@@ -51,6 +52,7 @@ import com.google.android.gms.vision.MultiProcessor;
 import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
+import com.samples.flironecamera.camera.CameraManager;
 import com.samples.flironecamera.camera.CameraSourcePreview;
 import com.samples.flironecamera.camera.FaceGraphic;
 import com.samples.flironecamera.camera.GraphicOverlay;
@@ -130,6 +132,8 @@ public class MainActivity extends AppCompatActivity {
 
     private RobotService mService;
 
+    private CameraManager cameraManager;
+
     /**
      * Show message on the screen
      */
@@ -142,6 +146,14 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        PreviewView previewView = findViewById(R.id.previewView_finder);
+        GraphicOverlay graphicOverlay = findViewById(R.id.faceOverlay2);
+
+        cameraManager = new CameraManager(this,
+                previewView,
+                this,
+                graphicOverlay);
 
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
@@ -591,7 +603,8 @@ public class MainActivity extends AppCompatActivity {
         // permission is not granted yet, request permission.
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         if (rc == PackageManager.PERMISSION_GRANTED) {
-            createCameraSource();
+//            createCameraSource();
+            cameraManager.startCamera();
         } else {
             requestCameraPermission();
         }

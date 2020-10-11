@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -20,7 +22,7 @@ public class GraphicOverlay extends View {
     private float mWidthScaleFactor = 1.0f;
     private int mPreviewHeight;
     private float mHeightScaleFactor = 1.0f;
-    private int mFacing = CameraSource.CAMERA_FACING_BACK;
+    private int mFacing = CameraSource.CAMERA_FACING_FRONT;
     public Set<Graphic> mGraphics = new HashSet<>();
 
     private final Paint mPaint;
@@ -36,6 +38,36 @@ public class GraphicOverlay extends View {
 
         public Graphic(GraphicOverlay overlay) {
             mOverlay = overlay;
+        }
+
+        public RectF calculateRect(float height, float width, Rect boundingBox) {
+            // 스케일
+            float scaleX = mOverlay.getWidth() / height;
+            float scaleY = mOverlay.getHeight() / width;
+            float scale = scaleX;
+            if (scaleX < scaleY) {
+                scale = scaleY;
+            }
+
+            // 오프셋
+            float offsetX = (mOverlay.getWidth() - (float) Math.ceil(height * scale)) / 2.0f;
+            float offsetY = (mOverlay.getHeight() - (float) Math.ceil(width * scale)) / 2.0f;
+
+            RectF mappedBox = new RectF(
+              boundingBox.right * scale + offsetX,
+              boundingBox.top * scale + offsetY,
+              boundingBox.left * scale + offsetX,
+              boundingBox.bottom * scale + offsetY
+            );
+
+            // 전면일 때 좌우 반전
+            if (mOverlay.isFrontMode()) {
+                float centerX = mOverlay.getWidth() / 2.0f;
+                mappedBox.left = centerX + (centerX - mappedBox.left);
+                mappedBox.right = centerX - (mappedBox.right - centerX);
+            }
+
+            return mappedBox;
         }
 
         /**
@@ -117,7 +149,6 @@ public class GraphicOverlay extends View {
         synchronized (mLock) {
             mGraphics.add(graphic);
         }
-        postInvalidate();
     }
 
     /**
@@ -160,5 +191,9 @@ public class GraphicOverlay extends View {
                 graphic.draw(canvas);
             }
         }
+    }
+
+    public boolean isFrontMode() {
+        return mFacing == CameraSource.CAMERA_FACING_FRONT;
     }
 }

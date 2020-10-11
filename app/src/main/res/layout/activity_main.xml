@@ -38,7 +38,7 @@
 
             <FrameLayout
                 android:id="@+id/debug_view"
-                android:visibility="gone"
+                android:visibility="visible"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1">
@@ -59,6 +59,7 @@
             </FrameLayout>
 
             <com.samples.flironecamera.camera.CameraSourcePreview
+                android:visibility="gone"
                 android:id="@+id/preview"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
@@ -70,6 +71,24 @@
                     android:layout_height="match_parent" />
 
             </com.samples.flironecamera.camera.CameraSourcePreview>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.camera.view.PreviewView
+                    android:id="@+id/previewView_finder"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:scaleType="fillCenter" />
+
+                <com.samples.flironecamera.camera.GraphicOverlay
+                    android:id="@+id/faceOverlay2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </FrameLayout>
         </LinearLayout>
 
         <TextView
