@@ -5,7 +5,7 @@
     android:id="@+id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#ff0000"
+    android:background="#0000ff"
     android:orientation="vertical"
     tools:context=".MainActivity">
 
@@ -36,14 +36,27 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-<!--            <ImageView-->
-<!--                android:id="@+id/photo_image"-->
-<!--                android:scaleX="-1"-->
-<!--                android:layout_width="190dp"-->
-<!--                android:layout_height="0dp"-->
-<!--                android:layout_weight="1"-->
-<!--                android:contentDescription="Thermal Image"-->
-<!--                android:scaleType="center" />-->
+            <FrameLayout
+                android:id="@+id/debug_view"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:id="@+id/photo_image"
+                    android:scaleX="-1"
+                    android:layout_width="190dp"
+                    android:layout_height="match_parent"
+                    android:contentDescription="Thermal Image"
+                    android:scaleType="center" />
+
+                <com.samples.flironecamera.MyView
+                    android:id="@+id/myView"
+                    android:layout_width="190dp"
+                    android:layout_height="match_parent" />
+
+            </FrameLayout>
 
             <com.samples.flironecamera.camera.CameraSourcePreview
                 android:id="@+id/preview"

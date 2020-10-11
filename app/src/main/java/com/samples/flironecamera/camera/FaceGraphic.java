@@ -6,6 +6,8 @@ import android.graphics.Paint;
 
 import com.google.android.gms.vision.face.Face;
 
+/**box drawing, show temperature */
+
 public class FaceGraphic extends GraphicOverlay.Graphic {
     public interface ITemp {
         double getTemp(int faceId);
@@ -22,10 +24,10 @@ public class FaceGraphic extends GraphicOverlay.Graphic {
             Color.BLUE,
             Color.CYAN,
             Color.GREEN,
-            Color.MAGENTA,
-            Color.RED,
+            Color.GRAY,
             Color.WHITE,
-            Color.YELLOW
+            Color.YELLOW,
+            Color.BLACK
     };
     private static int mCurrentColorIndex = 0;
 

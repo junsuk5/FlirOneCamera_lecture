@@ -12,6 +12,8 @@ package com.samples.flironecamera;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import androidx.annotation.WorkerThread;
+
 import com.flir.thermalsdk.androidsdk.image.BitmapAndroid;
 import com.flir.thermalsdk.image.ThermalImage;
 import com.flir.thermalsdk.image.fusion.FusionMode;
@@ -61,6 +63,8 @@ class CameraHandler {
     public interface StreamDataListener {
         void images(FrameDataHolder dataHolder);
         void images(Bitmap msxBitmap, Bitmap dcBitmap);
+
+        @WorkerThread
         void images(ThermalImage thermalImage);
     }
 

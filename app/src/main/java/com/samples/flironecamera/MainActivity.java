@@ -8,6 +8,7 @@
  *
  * Copyright 2019:    FLIR Systems
  * ******************************************************************/
+
 package com.samples.flironecamera;
 
 import android.Manifest;
@@ -17,6 +18,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.text.TextUtils;
 import android.util.Log;
@@ -25,6 +27,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -55,6 +58,7 @@ import com.samples.flironecamera.network.RobotService;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -85,6 +89,9 @@ public class MainActivity extends AppCompatActivity {
     // permission request codes need to be < 256
     private static final int RC_HANDLE_CAMERA_PERM = 2;
 
+    private static final int Y_SHIFT = -200;
+    private static final int W_SHIFT = 50;
+
 
     private static final String TAG = "MainActivity";
     private static final int FRAME_RATE = 10;
@@ -100,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
 //    private TextView discoveryStatus;
 //
 //    private ImageView msxImage;
-//    private ImageView photoImage;
+    private ImageView photoImage;
 
     private TextView resultTextView;
     private LinearLayout backgroundView;
@@ -109,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech mTTS2;
     private TextView textView1;
     private TextView textView2;
+    private MyView myView;
 
     private LinkedBlockingQueue<FrameDataHolder> framesBuffer = new LinkedBlockingQueue(21);
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
@@ -117,9 +125,8 @@ public class MainActivity extends AppCompatActivity {
 
     private CameraSourcePreview mPreview;
     private GraphicOverlay mGraphicOverlay;
-    private ThermalImage mThermalImage;
 
-    private Map<Integer, PersonData> mTempMap = new HashMap<>();
+    private Map<Integer, PersonData> mTempMap = Collections.synchronizedMap(new HashMap<>());
 
     private RobotService mService;
 
@@ -133,7 +140,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -170,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
         //ThermalSdkAndroid has to be initiated from a Activity with the Application Context to prevent leaking Context,
         // and before ANY using any ThermalSdkAndroid functions
         //ThermalLog will show log from the Thermal SDK in standards android log framework
-        ThermalSdkAndroid.init(getApplicationContext(), enableLoggingInDebug);
+        ThermalSdkAndroid.init(getApplicationContext(), enableLoggingInDebug); /**CAN BE PROBLEMATIC FOR SOME REASON*/
 
         permissionHandler = new PermissionHandler(showMessage, MainActivity.this);
 
@@ -434,7 +440,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     //msxImage.setImageBitmap(dataHolder.msxBitmap);
-//                    photoImage.setImageBitmap(dataHolder.dcBitmap);
+                    photoImage.setImageBitmap(dataHolder.dcBitmap);
                 }
             });
         }
@@ -454,7 +460,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "framebuffer size:" + framesBuffer.size());
                     FrameDataHolder poll = framesBuffer.poll();
                     //msxImage.setImageBitmap(poll.msxBitmap);
-//                    photoImage.setImageBitmap(poll.dcBitmap);
+                    photoImage.setImageBitmap(poll.dcBitmap);
 
 //                    InputImage image = InputImage.fromBitmap(poll.dcBitmap, 0);
 //
@@ -466,31 +472,41 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void images(ThermalImage thermalImage) {
-            mThermalImage = thermalImage;
+            Log.d("images", String.valueOf(Looper.getMainLooper().getThread() == Thread.currentThread()));
             // TODO MyView(myView.getWidth(), myView.getHeight()) 와 ThermalImage(480, 640) 사이즈 보정
             // 얼굴 예 : Rect(382, 671 - 804, 1093) =>
 //            Log.d(TAG, "ThermalImage: " + thermalImage.getWidth() + ", " + thermalImage.getHeight());
 
             if (!mGraphicOverlay.mGraphics.isEmpty()) {
-                Face face = ((FaceGraphic)mGraphicOverlay.mGraphics.iterator().next()).mFace;
-                PersonData data = new PersonData(face, calcTemp(face, thermalImage));
-                mTempMap.put(face.getId(), data);
+                Face face = ((FaceGraphic) mGraphicOverlay.mGraphics.iterator().next()).mFace;
+                if (face != null) {
+                    PersonData data = new PersonData(face, calcTemp(face, thermalImage));
+                    mTempMap.put(face.getId(), data);
 
-                mService.sendData(face.getId(), data.getTemp()).enqueue(new Callback<ResponseBody>() {
-                    @Override
-                    public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                        Log.d(TAG, "onResponse: " + response.code());
-                    }
+                    mService.sendData(face.getId(), data.getTemp()).enqueue(new Callback<ResponseBody>() {
+                        @Override
+                        public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                            Log.d(TAG, "onResponse: " + response.code());
+                        }
 
-                    @Override
-                    public void onFailure(Call<ResponseBody> call, Throwable t) {
-                        Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                        @Override
+                        public void onFailure(Call<ResponseBody> call, Throwable t) {
+                            Toast.makeText(MainActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        backgroundView.setBackgroundColor(Color.WHITE);
+                        resultTextView.setTextColor(Color.GREEN);
+                        textView2.setVisibility(View.GONE);
+                    });
+                }
             } else {
-                backgroundView.setBackgroundColor(Color.WHITE);
-                resultTextView.setTextColor(Color.GREEN);
-                textView2.setVisibility(View.GONE);
+                runOnUiThread(() -> {
+                    backgroundView.setBackgroundColor(Color.WHITE);
+                    resultTextView.setTextColor(Color.GREEN);
+                    textView2.setVisibility(View.GONE);
+                });
             }
 
 
@@ -503,7 +519,7 @@ public class MainActivity extends AppCompatActivity {
                         .map(PersonData::getTemp)
                         .max(Double::compare).orElse(0.0);
 
-                if (maxTemp > 38) {
+                if (maxTemp > 37.5) {
                     backgroundView.setBackgroundColor(Color.RED);
                     resultTextView.setTextColor(Color.RED);
                     textView2.setVisibility(View.VISIBLE);
@@ -563,7 +579,8 @@ public class MainActivity extends AppCompatActivity {
         backgroundView = findViewById(R.id.background);
 
         //msxImage = findViewById(R.id.msx_image);
-//        photoImage = findViewById(R.id.photo_image);
+        photoImage = findViewById(R.id.photo_image);
+        myView = findViewById(R.id.myView);
 
         resultTextView = findViewById(R.id.result_textView);
 
@@ -648,7 +665,21 @@ public class MainActivity extends AppCompatActivity {
     FaceGraphic.ITemp iTemp = new FaceGraphic.ITemp() {
         @Override
         public double getTemp(int faceId) {
-            return mTempMap.get(faceId) == null ? 0.0 : mTempMap.get(faceId).getTemp();
+            double temp = mTempMap.get(faceId) == null ? 0.0 : mTempMap.get(faceId).getTemp();
+
+            runOnUiThread(() -> {
+                if (temp > 37.5) {
+                    backgroundView.setBackgroundColor(Color.RED);
+                    resultTextView.setTextColor(Color.RED);
+                    textView2.setVisibility(View.VISIBLE);
+                    speak2();
+                } else {
+                    backgroundView.setBackgroundColor(Color.WHITE);
+                    resultTextView.setTextColor(Color.GREEN);
+                    textView2.setVisibility(View.GONE);
+                }
+            });
+            return temp;
         }
     };
 
@@ -730,6 +761,12 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_disconnect:
                 disconnect();
                 return true;
+            case R.id.action_debug:
+                findViewById(R.id.debug_view).setVisibility(View.VISIBLE);
+                return true;
+            case R.id.action_normal:
+                findViewById(R.id.debug_view).setVisibility(View.GONE);
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -751,6 +788,9 @@ public class MainActivity extends AppCompatActivity {
 
     public double calcTemp(Face face, ThermalImage thermalImage) {
         if (thermalImage == null || face == null) {
+            runOnUiThread(() -> {
+                myView.setRect(null);
+            });
             return 0.0;
         }
 
@@ -764,13 +804,49 @@ public class MainActivity extends AppCompatActivity {
                 ? thermalImage.getHeight()
                 : (int) (face.getPosition().y + face.getHeight());
 
-        Rect bounds = new Rect(l, t, r, b);
+        int left = thermalImage.getWidth() - r;
+        if (left < 0) left = 0;
+        int top = t + Y_SHIFT;
+        if (top < 0) top = 0;
+        int right = thermalImage.getWidth() - l + W_SHIFT;
+        if (right > thermalImage.getWidth()) right = thermalImage.getWidth();
+        if (right < 0) right = 0;
+        int bottom = b + Y_SHIFT + W_SHIFT;
+        if (bottom < 0) bottom = 0;
+        if (bottom > thermalImage.getHeight()) bottom = thermalImage.getHeight();
 
+        Rect bounds = new Rect((left),
+                top,
+                (right),
+                bottom);
+        runOnUiThread(() -> {
+            myView.setRect(bounds);
+        });
+
+//        int dy = bounds.top + (bounds.bottom - bounds.top) / 3;
+//        if (dy < 0) dy = 0;
+//
+//        int dx = bounds.left + (bounds.right - bounds.left) / 3;
+//        if (dx < 0) dx = 0;
+//
+//        int width = (bounds.right - bounds.left) / 2;
+//        if (width > thermalImage.getWidth()) {
+//            width = thermalImage.getWidth();
+//        }
+//        int height = (bounds.bottom - bounds.top) / 2;
+//        if (height > thermalImage.getHeight()) {
+//            height = thermalImage.getHeight();
+//        }
         Rectangle rectangle = new Rectangle(bounds.left, bounds.top,
-                bounds.right - bounds.left, bounds.bottom - bounds.top);
+                bounds.right - bounds.left,
+                bounds.bottom - bounds.top);
         double[] result = thermalImage.getValues(rectangle);
 
         Arrays.sort(result);
+
+        if (result.length == 0) {
+            return 0;
+        }
 
         double maxTemp = result[result.length - 1] - 273.15;
         return maxTemp;

@@ -13,6 +13,8 @@ import com.google.android.gms.vision.CameraSource;
 
 import java.io.IOException;
 
+/** with GraphicOverlay to show */
+
 public class CameraSourcePreview extends ViewGroup {
     private static final String TAG = "CameraSourcePreview";
 

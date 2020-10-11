@@ -12,6 +12,8 @@ import com.google.android.gms.vision.CameraSource;
 import java.util.HashSet;
 import java.util.Set;
 
+/** Showing camera preview - phone camera*/
+
 public class GraphicOverlay extends View {
     private final Object mLock = new Object();
     private int mPreviewWidth;
